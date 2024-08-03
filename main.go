@@ -13,10 +13,17 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func main() {
-	_ = godotenv.Load()
+const (
+    batchSize = 10000 // Adjust this based on your memory constraints
+    totalRecords = 1000000
+)
 
-    app := fiber.New()
+func main() {
+    _ = godotenv.Load()
+
+    app := fiber.New(fiber.Config{
+        BodyLimit: 1 * 1024 * 1024, // Limit request size to 1MB
+    })
 
     app.Get("/hello", func(c *fiber.Ctx) error {
         return c.SendString("Hello World")
@@ -51,17 +58,22 @@ func insertRecords(c *fiber.Ctx) error {
         return c.Status(500).SendString(fmt.Sprintf("Error getting initial count: %v", err))
     }
 
-    batch := &pgx.Batch{}
-    for i := 0; i < 1000000; i++ {
-        id := uuid.New()
-        email := fmt.Sprintf("user%d@test.com", i+1)
-        batch.Queue("INSERT INTO users(id, email) VALUES($1, $2)", id, email)
-    }
+    for i := 0; i < totalRecords; i += batchSize {
+        batch := &pgx.Batch{}
+        for j := 0; j < batchSize && i+j < totalRecords; j++ {
+            id := uuid.New()
+            email := fmt.Sprintf("user%d@test.com", i+j+1)
+            batch.Queue("INSERT INTO users(id, email) VALUES($1, $2)", id, email)
+        }
 
-    br := pool.SendBatch(ctx, batch)
-    err = br.Close()
-    if err != nil {
-        return c.Status(500).SendString(fmt.Sprintf("Error executing batch: %v", err))
+        br := pool.SendBatch(ctx, batch)
+        err = br.Close()
+        if err != nil {
+            return c.Status(500).SendString(fmt.Sprintf("Error executing batch: %v", err))
+        }
+
+        // Optional: add a small delay to prevent overwhelming the database
+        time.Sleep(10 * time.Millisecond)
     }
 
     finalCount, err := getUserCount(ctx, pool)
