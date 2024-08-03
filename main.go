@@ -73,7 +73,7 @@ func insertRecords(c *fiber.Ctx) error {
         }
 
         // Optional: add a small delay to prevent overwhelming the database
-        time.Sleep(10 * time.Millisecond)
+        // time.Sleep(10 * time.Millisecond)
     }
 
     finalCount, err := getUserCount(ctx, pool)
