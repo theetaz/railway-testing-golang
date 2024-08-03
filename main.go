@@ -45,7 +45,7 @@ func main() {
 	app := fiber.New()
 
 	app.Get("/hello", func(c *fiber.Ctx) error {
-		return c.SendString("World")
+		return c.SendString("Hello World")
 	})
 
 	app.Get("/health-check", healthCheck)
